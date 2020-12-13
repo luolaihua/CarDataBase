@@ -4,7 +4,7 @@
 #include <QDialog>
 class QSqlError;
 namespace Ui {
-class ConnDlg;
+class QSqlConnectionDialogUi;
 }
 
 class ConnDlg : public QDialog
@@ -26,12 +26,11 @@ public:
 
 private slots:
     void on_okButton_clicked();
-
     void on_cancelButton_clicked();
     void driverChanged(const QString &);
 
 private:
-    Ui::ConnDlg *ui;
+    Ui::QSqlConnectionDialogUi *ui;
 };
 
 #endif // CONNDLG_H

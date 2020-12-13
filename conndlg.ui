@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ConnDlg</class>
- <widget class="QDialog" name="ConnDlg">
+ <class>QSqlConnectionDialogUi</class>
+ <widget class="QDialog" name="QSqlConnectionDialogUi">
   <property name="geometry">
    <rect>
     <x>0</x>
