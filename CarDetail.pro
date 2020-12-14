@@ -24,3 +24,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 FORMS += \
     conndlg.ui
+
+RESOURCES += \
+    res.qrc

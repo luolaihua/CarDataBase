@@ -10,7 +10,9 @@ int main(int argc, char *argv[])
     ConnDlg dialg;
     if(dialg.exec () != QDialog::Accepted)
         return -1;
-    dialg.show ();
+    QFile *carDetails = new QFile(":/attribs.xml");
+    MainWindow window("factory","cars",carDetails);
+    window.show ();
 //    MainWindow w;
 //    w.show();
     return a.exec();
