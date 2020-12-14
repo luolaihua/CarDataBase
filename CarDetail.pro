@@ -10,11 +10,13 @@ CONFIG += c++11
 
 SOURCES += \
     conndlg.cpp \
+    dialog.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
     conndlg.h \
+    dialog.h \
     mainwindow.h
 
 # Default rules for deployment.

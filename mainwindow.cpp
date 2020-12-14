@@ -7,6 +7,12 @@
 #include<QSqlRecord>
 #include <QMessageBox>
 #include<QDebug>
+#include"dialog.h"
+/**
+ * @brief extern 关键字,可以置于变量或函数前,告诉编译器该变量或函数的定义在别的文件,要去其他文件中寻找定义,在这个地方声明一下是为了使用
+ */
+extern int uniqueCarId;
+extern int uniqueFactoryId;
 MainWindow::MainWindow(const QString &factoryTable, const QString &carTable, QFile *carDetails, QWidget *parent)
     : QMainWindow(parent)
 {
@@ -15,10 +21,22 @@ MainWindow::MainWindow(const QString &factoryTable, const QString &carTable, QFi
     readCarData ();
     //为汽车表创建一个model
     carModel = new QSqlRelationalTableModel(this);
+    //为模型设置一个数据库表
     carModel->setTable (carTable);
-    //说明上面创建的模型的第二个字段（即汽车表中的factoryid字段）是汽车制造商的factory中的id字段的外键，但其实显示为汽车制造表的manufactory字段，而不是id字段
+    //说明上面创建的模型的第二个字段（即汽车表中的factoryid字段）是汽车制造商的factory中的id字段的外键，但其实显示为汽车制造表的manufactory字段，而不是factoryid字段
+    /***
+     * setRelation为两个表设置关系
+     * 在创建表时: foreign key(factoryid) references factory
+     * 表明cars表中的factoryid为外键,指向另一个表factory
+     * 数据库表cars原始表头:carid name factoryid year
+     * carModel->setRelation (2,QSqlRelation(factoryTable,"id","manufactory"));
+     * cars表的第二列(factoyid)是一个外键,映射到factoryTable表中的id字段,
+     * 同时在视图中将会用factoryTable表的manufactory字段代替factoryid字段展示
+     */
     carModel->setRelation (2,QSqlRelation(factoryTable,"id","manufactory"));
+    //将cars表中的数据填充到carModel中
     carModel->select ();
+
     factoryModel = new QSqlTableModel(this);
     factoryModel->setTable (factoryTable);
     factoryModel->select ();
@@ -26,6 +44,8 @@ MainWindow::MainWindow(const QString &factoryTable, const QString &carTable, QFi
     QGroupBox *factory = createFactoryGroupBox ();
     QGroupBox *cars = createCarGroupBox ();
     QGroupBox *details = createDetailsGroupBox ();
+    uniqueCarId = carModel->rowCount ();
+    uniqueFactoryId = factoryModel->rowCount ();
     //布局
     QGridLayout *layout = new QGridLayout;
     layout->addWidget (factory,0,0);
@@ -47,16 +67,31 @@ MainWindow::~MainWindow()
 
 void MainWindow::addCar()
 {
-
+    QDialog *dialog = new Dialog(carModel,factoryModel,carData,file,this);
+    int accepted = dialog->exec ();
+    if(accepted == 1)
+    {
+        int lastRow = carModel->rowCount () -1;
+        carView->selectRow (lastRow);
+        carView->scrollToBottom ();
+        showCarDetails (carModel->index (lastRow,0));
+    }
 }
-
+/**
+ * @brief 当factory视图被点击时触发,
+ * @param index 被点击条目的下表
+ */
 void MainWindow::changeFactory(QModelIndex index)
 {
-    //取出用户选择的这条汽车制造商记录
+    qDebug() << "Factory row:"<<index<<" Factory col:"<<index.column ();
+
+    //取出用户选择的这条汽车制造商记录,记录是以行为单位
     QSqlRecord record = factoryModel->record (index.row ());
 //    获取以上选择的汽车制造商的主键，QSlRecord::value()需要指定字段名或字段索引
     QString factoryId = record.value ("id").toString ();
+
 //    在汽车表模型中设置过滤器，使其只显示所选的汽车制造商的车型
+    ///setFilter就像 sql里的WHERE语句一样,里面的字符串为过滤条件
     carModel->setFilter ("id = '"+ factoryId+"'");
 //    在详细信息中显示所选的汽车制造商的信息
     showFactoryProfile (index);
@@ -85,7 +120,10 @@ void MainWindow::delCar()
         }
     }
 }
-
+/**
+ * @brief 当点击汽车视图时触发,
+ * @param index,传入当前点击的下标
+ */
 void MainWindow::showCarDetails(QModelIndex index)
 {
     //record记录是某一行的
@@ -94,9 +132,12 @@ void MainWindow::showCarDetails(QModelIndex index)
     QString name = record.value ("name").toString ();
     QString year = record.value ("year").toString ();
     QString carId = record.value ("carid").toString ();
+    qDebug() << "factory:"<<factory;
+    //在未点击制造商表之前,汽车表显示的是全部的汽车,有多个汽车制造商,所以需要显示制造商信息
     showFactoryProfile (indexOfFactory (factory));
     titleLabel->setText (tr("品牌: %1 (%2)").arg (name).arg(year));
     titleLabel->show ();
+
     //记录了 车型信息的xml文件中搜索匹配的车型
     QDomNodeList cars = carData.elementsByTagName ("car");
     for(int i = 0; i<cars.count ();i++)
@@ -120,10 +161,12 @@ void MainWindow::showFactoryProfile(QModelIndex index)
     QSqlRecord record = factoryModel->record (index.row ());
 //    获取制造商的名称
     QString name = record.value ("manufactory").toString ();
-//    从汽车表模型中获得车型数量
+//    从汽车表模型中获得车型数量,此时carModel已经按照factoryId过滤了,只剩下特定厂商的汽车数据
     int count = carModel->rowCount ();
     profileLabel->setText (tr("汽车制造商：%1\n产品数量：%2").arg (name).arg (count));
     profileLabel->show ();
+
+    //隐藏汽车详情信息
     titleLabel->hide ();
     attribList->hide ();
 
@@ -143,7 +186,19 @@ QGroupBox *MainWindow::createCarGroupBox()
     carView->setAlternatingRowColors (true);
     carView->setModel (carModel);
 
+    /**
+     * clicked
+     * This signal is emitted when a mouse button is left-clicked.
+     */
     connect (carView,&QTableView::clicked,this,&MainWindow::showCarDetails );
+    /*
+     * activated:
+     *This signal is emitted when the item specified by index
+     * is activated by the user.
+     * How to activate items depends on the platform;
+     * e.g., by single- or double-clicking the item,
+     * or by pressing the Return or Enter key when the item is current.
+     */
     connect (carView,&QTableView::activated ,this,&MainWindow::showCarDetails );
 
     QVBoxLayout *layout = new QVBoxLayout;
