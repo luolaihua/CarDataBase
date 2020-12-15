@@ -48,9 +48,11 @@ void Dialog::submit()
         if(factoryId == -1)
             factoryId = addNewFactory (factory,address);
         //往汽车表中插入一条记录
+        qDebug() << "factoryId:"<<factoryId;
         int carId = addNewCar (name,factoryId);
         QStringList attribs;
         attribs = attribEditor->text ().split (";",QString::SkipEmptyParts);
+        qDebug() << "attribs"<<attribs;
         //将录入的车型信息写入xml文件
         addAttribs (carId,attribs);
         accept ();
@@ -75,7 +77,7 @@ int Dialog::addNewCar(const QString &name, int factoryId)
     f1.setValue (QVariant(id));
     f2.setValue (QVariant(name));
     f3.setValue (QVariant(factoryId));
-    f4.setValue (QVariant(yearEditor->text()));
+    f4.setValue (QVariant(yearEditor->value()));
     record.append (f1);
     record.append (f2);
     record.append (f3);
@@ -85,7 +87,7 @@ int Dialog::addNewCar(const QString &name, int factoryId)
 }
 
 /**
- * @brief 在汽车制造商表中插入一条新记录,厂名和地址由参数传入
+ * @brief 在汽车制造商表中插入一条新记录,厂名和地址由参数传入，model能改变数据库中的表数据，它不单单是显示数据
  * @param factory
  * @param address
  * @return
